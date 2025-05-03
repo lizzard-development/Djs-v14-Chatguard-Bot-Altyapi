@@ -1,4 +1,4 @@
-🛡️ ChatGuard Botu
+7🛡️ ChatGuard Botu
 =========================
 
 Bu bot, Discord sunucunuzda sadece `!panel` komutunu kullanarak ChatGuard kontrol panelini göndermenizi sağlar.
@@ -15,7 +15,7 @@ Bu bot, Discord sunucunuzda sadece `!panel` komutunu kullanarak ChatGuard kontro
 
 🚀 Kurulum:
 1. Botu klonla:
-   git clone https://github.com/kullaniciAdi/chatguard-panel-bot.git
+   git clone https://github.com/lizzard-development/Djs-v14-Chatguard-Bot-Altyapi
 
 2. Klasöre gir:
    cd chatguard-panel-bot
