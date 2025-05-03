@@ -1,4 +1,4 @@
-7🛡️ ChatGuard Botu
+🛡️ ChatGuard Botu
 =========================
 
 Bu bot, Discord sunucunuzda sadece `!panel` komutunu kullanarak ChatGuard kontrol panelini göndermenizi sağlar.
