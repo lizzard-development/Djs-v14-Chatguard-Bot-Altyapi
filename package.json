@@ -1,0 +1,14 @@
+{
+  "name": "lizzard-chatguard-bot",
+  "version": "1.0.0",
+  "description": "Discord.js v14 Chatguard Bot",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "author": "lizzard",
+  "license": "MIT",
+  "dependencies": {
+    "discord.js": "^14.9.0"
+  }
+}
