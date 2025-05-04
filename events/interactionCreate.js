@@ -4,7 +4,10 @@ const {
   ButtonBuilder, 
   ButtonStyle, 
   ModalBuilder, 
-  TextInputBuilder, 
+  TextInputBuilder,
+  StringSelectMenuBuilder, 
+  RoleSelectMenuBuilder, 
+  UserSelectMenuBuilder, 
   TextInputStyle, 
   ChannelType,
   PermissionsBitField 
@@ -383,95 +386,157 @@ module.exports = {
       
       
       else if (interaction.customId === 'self_rol_modal') {
-    const targetId = interaction.fields.getTextInputValue('role_id');
-    const action = interaction.fields.getTextInputValue('action').toLowerCase();
+  const typeSelect = new ActionRowBuilder()
+    .addComponents(
+      new StringSelectMenuBuilder()
+        .setCustomId('selfrole_type_select')
+        .setPlaceholder('İşlem türünü seçin')
+        .addOptions([
+          { label: 'Rol İşlemleri', value: 'role', emoji: '🎭' },
+          { label: 'Kullanıcı İşlemleri', value: 'user', emoji: '👤' }
+        ])
+    );
 
-    
-    const role = interaction.guild.roles.cache.get(targetId);
-    let user;
-    try {
-        user = await interaction.guild.members.fetch(targetId);
-    } catch (error) {
-        user = null;
-    }
+  await interaction.reply({
+    content: '**Self Rol Yönetimi**\nLütfen işlem yapacağınız türü seçin:',
+    components: [typeSelect],
+    ephemeral: true
+  });
+}
 
-    if (!role && !user) {
-        await interaction.reply({
-            content: '❌ Geçersiz ID! Lütfen geçerli bir rol VEYA kullanıcı ID\'si girin.',
-            ephemeral: true
-        });
-        return;
-    }
 
-    const targetType = role ? 'role' : 'user';
-    const targetName = role ? role.name : user.user.tag;
+if (interaction.isStringSelectMenu() && interaction.customId === 'selfrole_type_select') {
+  const type = interaction.values[0];
+  
+  // 2. Adım: Hedef Seçimi
+  let targetSelect;
+  if (type === 'role') {
+    targetSelect = new ActionRowBuilder().addComponents(
+      new RoleSelectMenuBuilder()
+        .setCustomId(`selfrole_target_${type}`)
+        .setPlaceholder('Rol seçin')
+        .setMaxValues(1)
+    );
+  } else {
+    targetSelect = new ActionRowBuilder().addComponents(
+      new UserSelectMenuBuilder()
+        .setCustomId(`selfrole_target_${type}`)
+        .setPlaceholder('Kullanıcı seçin')
+        .setMaxValues(1)
+    );
+  }
 
-   
-    if (!client.ayarlar.selfRoller.every(item => typeof item === 'object')) {
-        client.ayarlar.selfRoller = client.ayarlar.selfRoller.map(id => ({ type: 'role', id }));
-    }
+  await interaction.update({
+    content: `**${type === 'role' ? 'Rol' : 'Kullanıcı'} Seçimi**\nLütfen bir hedef seçin:`,
+    components: [targetSelect]
+  });
+}
 
-    if (action === 'ekle') {
-        const exists = client.ayarlar.selfRoller.some(item => 
-            item.id === targetId && item.type === targetType
-        );
 
-        if (!exists) {
-            client.ayarlar.selfRoller.push({
-                type: targetType,
-                id: targetId
-            });
-            client.saveSettings();
+if (
+  (interaction.isRoleSelectMenu() || interaction.isUserSelectMenu()) && 
+  interaction.customId.startsWith('selfrole_target_')
+) {
+  const type = interaction.customId.split('_')[2];
+  const targetId = interaction.values[0];
+  
+  
+  const actionRow = new ActionRowBuilder().addComponents(
+    new ButtonBuilder()
+      .setCustomId(`selfrole_action_${type}_${targetId}_add`)
+      .setLabel('Ekle')
+      .setStyle(ButtonStyle.Success),
+    new ButtonBuilder()
+      .setCustomId(`selfrole_action_${type}_${targetId}_remove`)
+      .setLabel('Kaldır')
+      .setStyle(ButtonStyle.Danger)
+  );
 
-            await interaction.reply({
-                content: `✅ ${targetName} ${targetType === 'role' ? 'rolü' : 'kullanıcısı'} self rol listesine eklendi.`,
-                ephemeral: true
-            });
-        } else {
-            await interaction.reply({
-                content: `❌ ${targetName} zaten self rol listesinde mevcut!`,
-                ephemeral: true
-            });
-            return;
-        }
-    } else if (action === 'kaldir') {
-        const index = client.ayarlar.selfRoller.findIndex(item => 
-            item.id === targetId && item.type === targetType
-        );
+  await interaction.update({
+    content: `**İşlem Seçimi**\nSeçilen hedef için aksiyonu seçin:`,
+    components: [actionRow]
+  });
+}
 
-        if (index > -1) {
-            client.ayarlar.selfRoller.splice(index, 1);
-            client.saveSettings();
 
-            await interaction.reply({
-                content: `✅ ${targetName} ${targetType === 'role' ? 'rolü' : 'kullanıcısı'} self rol listesinden kaldırıldı.`,
-                ephemeral: true
-            });
-        } else {
-            await interaction.reply({
-                content: `❌ ${targetName} self rol listesinde bulunamadı!`,
-                ephemeral: true
-            });
-            return;
-        }
+if (interaction.isButton() && interaction.customId.startsWith('selfrole_action_')) {
+  const [,, type, targetId, action] = interaction.customId.split('_');
+  
+ 
+  let target;
+  try {
+    if (type === 'role') {
+      target = await interaction.guild.roles.fetch(targetId);
     } else {
-        await interaction.reply({
-            content: '❌ Geçersiz işlem! Lütfen `ekle` veya `kaldir` yazın.',
-            ephemeral: true
-        });
-        return;
+      target = await interaction.guild.members.fetch(targetId);
     }
+  } catch {
+    target = null;
+  }
 
-   
-    const logChannel = interaction.guild.channels.cache.get(config.logChannel);
-    if (logChannel) {
-        const embed = new EmbedBuilder()
-            .setTitle('🛡️ Self Rol Yönetimi')
-            .setDescription(`${interaction.user} tarafından ${targetName} ${targetType === 'role' ? 'rolü' : 'kullanıcısı'} self rol listesine ${action === 'ekle' ? 'eklendi' : 'kaldırıldı'}.`)
-            .setColor(config.color)
-            .setTimestamp();
+  if (!target) {
+    await interaction.reply({ content: '❌ Hedef bulunamadı!', ephemeral: true });
+    return;
+  }
 
-        logChannel.send({ embeds: [embed] });
+  
+  if (!Array.isArray(client.ayarlar.selfRoller)) client.ayarlar.selfRoller = [];
+  if (!client.ayarlar.selfRoller.every(i => i?.type)) {
+    client.ayarlar.selfRoller = client.ayarlar.selfRoller.map(id => 
+      typeof id === 'string' ? { type: 'role', id } : id
+    );
+  }
+
+  
+  const existingIndex = client.ayarlar.selfRoller.findIndex(i => 
+    i.id === targetId && i.type === type
+  );
+
+  if (action === 'add') {
+    if (existingIndex > -1) {
+      await interaction.reply({ 
+        content: `❌ ${target.toString()} zaten listede mevcut!`,
+        ephemeral: true 
+      });
+      return;
+    }
+    
+    client.ayarlar.selfRoller.push({ type, id: targetId });
+    client.saveSettings();
+    
+    await interaction.reply({
+      content: `✅ ${target.toString()} başarıyla eklendi!`,
+      ephemeral: true
+    });
+  } 
+  else {
+    if (existingIndex === -1) {
+      await interaction.reply({ 
+        content: `❌ ${target.toString()} listede bulunamadı!`,
+        ephemeral: true 
+      });
+      return;
+    }
+    
+    client.ayarlar.selfRoller.splice(existingIndex, 1);
+    client.saveSettings();
+    
+    await interaction.reply({
+      content: `✅ ${target.toString()} başarıyla kaldırıldı!`,
+      ephemeral: true
+    });
+  }
+
+  
+  const logChannel = interaction.guild.channels.cache.get(config.logChannel);
+  if (logChannel) {
+    const embed = new EmbedBuilder()
+      .setTitle(`🛡️ Self ${type === 'role' ? 'Rol' : 'Kullanıcı'} Yönetimi`)
+      .setDescription(`${interaction.user} ${action === 'add' ? 'ekledi' : 'kaldırdı'} ➜ ${target.toString()}`)
+      .setColor(action === 'add' ? '#00ff00' : '#ff0000')
+      .setTimestamp();
+      
+    logChannel.send({ embeds: [embed] });
     }
     }
     }
